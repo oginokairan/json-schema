@@ -1,14 +1,25 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
-  "title": "MorphProject Schema",
+  "title": "MorphProject Schema (All major fields required, scheduled_jobs may be null)",
   "type": "object",
   "additionalProperties": false,
+
+  "required": [
+    "profile",
+    "source_paths",
+    "default_connection",
+    "output_paths",
+    "scheduled_jobs",
+    "result_cache_ttl"
+  ],
+
   "properties": {
     "profile": {
       "type": "string",
-      "description": "Morph INI profile name. If omitted, 'default' is used.",
+      "description": "Morph INI profile name. If omitted, defaults to 'default'.",
       "default": "default"
     },
+
     "source_paths": {
       "type": "array",
       "description": "List of directories (or parent directories) for Python/SQL files.",
@@ -21,15 +32,14 @@
     },
 
     "default_connection": {
-      "description": "Default connection info. Either a string slug, or an object matching MorphConnection (type='morph').",
-      "default": "morph_builtin_db", 
+      "description": "Default connection info. Can be a slug (string) or an object with type='morph'.",
       "oneOf": [
         {
           "type": "string"
         },
         {
           "type": "object",
-          "description": "MorphConnection-like object. If 'type'=='morph', it can have database_id, connection_slug, etc.",
+          "description": "MorphConnection-like object with 'type'='morph'.",
           "properties": {
             "type": {
               "type": "string",
@@ -45,71 +55,81 @@
           "required": ["type"],
           "additionalProperties": false
         }
-      ]
+      ],
+      "default": "morph_builtin_db"
     },
 
     "output_paths": {
       "type": "array",
-      "description": "Where to place output files. Defaults to a path under TMP_MORPH_DIR.",
+      "description": "List of output path templates. Defaults to one path in TMP_MORPH_DIR.",
       "items": {
         "type": "string"
       },
       "default": [
-        "${MORPH_TMP}/{name}/{run_id}${ext()}"
+        "/tmp/morph/{name}/{run_id}{ext()}"
       ]
     },
 
     "scheduled_jobs": {
-      "type": "object",
-      "description": "Configuration for scheduled jobs. Optional dictionary keyed by function name.",
-      "patternProperties": {
-        "^[a-zA-Z0-9_]+$": {
+      "description": "Scheduled jobs configuration. May be null or an object keyed by function name.",
+      "default": null,
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
           "type": "object",
-          "description": "Configuration for a single named job (function).",
-          "properties": {
-            "schedules": {
-              "type": "array",
-              "description": "List of individual schedule entries for this function.",
-              "items": {
-                "type": "object",
-                "description": "One schedule entry.",
-                "properties": {
-                  "cron": {
-                    "type": "string",
-                    "description": "Must match convertCronToDaysArr logic:\n1) Start with 'cron('\n2) 1st field: one of 0,15,30,45\n3) 2nd field: digits\n4) 4th field: '*'\n5) 5th field: not exactly '?'",
-                    "pattern": "^cron\\(\\s*(?:0|15|30|45)\\s+(\\d+)\\s+[^\\s]+\\s+\\*\\s+(?!\\?)\\S+\\s*\\)$"
-                  },
-                  "is_enabled": {
-                    "type": "boolean",
-                    "description": "Whether this schedule is active (default: true).",
-                    "default": true
-                  },
-                  "timezone": {
-                    "type": "string",
-                    "description": "Time zone for execution (default: UTC).",
-                    "default": "UTC"
-                  },
-                  "variables": {
+          "description": "Dictionary keyed by job (function) name.",
+          "patternProperties": {
+            "^[a-zA-Z0-9_]+$": {
+              "type": "object",
+              "description": "Configuration for a single named job (function).",
+              "properties": {
+                "schedules": {
+                  "type": "array",
+                  "description": "List of schedule entries for this function.",
+                  "items": {
                     "type": "object",
-                    "description": "Any additional parameters, stored as JSON.",
-                    "additionalProperties": true
+                    "description": "One schedule entry.",
+                    "properties": {
+                      "cron": {
+                        "type": "string",
+                        "description": "Must match convertCronToDaysArr logic:\n1) Must start with 'cron('\n2) 1st field (minutes) must be one of 0,15,30,45\n3) 2nd field (hour) must be digits\n4) 4th field must be '*'\n5) 5th field must not be exactly '?'",
+                        "pattern": "^cron\\(\\s*(?:0|15|30|45)\\s+(\\d+)\\s+[^\\s]+\\s+\\*\\s+(?!\\?)\\S+\\s*\\)$"
+                      },
+                      "is_enabled": {
+                        "type": "boolean",
+                        "description": "Whether this schedule is active (default: true).",
+                        "default": true
+                      },
+                      "timezone": {
+                        "type": "string",
+                        "description": "Time zone for execution (default: UTC).",
+                        "default": "UTC"
+                      },
+                      "variables": {
+                        "type": "object",
+                        "description": "Stores additional data as JSON.",
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": ["cron"],
+                    "additionalProperties": false
                   }
-                },
-                "required": ["cron"],
-                "additionalProperties": false
-              }
+                }
+              },
+              "required": ["schedules"],
+              "additionalProperties": false
             }
           },
-          "required": ["schedules"],
           "additionalProperties": false
         }
-      },
-      "additionalProperties": false
+      ]
     },
 
     "result_cache_ttl": {
       "type": "integer",
-      "description": "TTL for caching results (in seconds). Default: 0 = no caching.",
+      "description": "Cache TTL in seconds (default: 0 means no caching).",
       "default": 0
     }
   }
