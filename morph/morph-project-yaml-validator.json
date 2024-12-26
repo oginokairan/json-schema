@@ -1,88 +1,97 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
-  "title": "Cron Format (convertCronToDaysArr logic + first field limited to 0,15,30,45)",
+  "title": "MorphProject Schema",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "profile": {
       "type": "string",
-      "description": "The name of the Morph INI profile to use. If omitted, 'default' will be used.",
+      "description": "Morph INI profile name. If omitted, 'default' is used.",
       "default": "default"
     },
     "source_paths": {
       "type": "array",
-      "description": "A list of directories (or parent directories) containing Python/SQL files.",
+      "description": "List of directories (or parent directories) for Python/SQL files.",
       "items": {
         "type": "string"
-      }
-    },
-    "knowledge_paths": {
-      "type": "array",
-      "description": "A list of directories containing documents referenced by Morph AI.",
-      "items": {
-        "type": "string"
-      }
-    },
-    "template_paths": {
-      "type": "array",
-      "description": "A list of directories (or parent directories) containing template files.",
-      "items": {
-        "type": "string"
-      }
-    },
-    "default_connection": {
-      "type": "object",
-      "description": "Default connection info for SQL execution. If not specified or null, the built-in Morph DB will be used.",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["morph"],
-          "description": "Connection type (currently only 'morph' is expected)."
-        },
-        "database_id": {
-          "type": "string",
-          "description": "A database ID (e.g., 'xxxx-xxxx-xxx-xxxx')."
-        },
-        "connection_slug": {
-          "type": "string",
-          "description": "A slug to uniquely identify the connection."
-        }
       },
-      "additionalProperties": false
+      "default": [
+        "src"
+      ]
     },
+
+    "default_connection": {
+      "description": "Default connection info. Either a string slug, or an object matching MorphConnection (type='morph').",
+      "default": "morph_builtin_db", 
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "description": "MorphConnection-like object. If 'type'=='morph', it can have database_id, connection_slug, etc.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["morph"]
+            },
+            "database_id": {
+              "type": "string"
+            },
+            "connection_slug": {
+              "type": "string"
+            }
+          },
+          "required": ["type"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "output_paths": {
+      "type": "array",
+      "description": "Where to place output files. Defaults to a path under TMP_MORPH_DIR.",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "${MORPH_TMP}/{name}/{run_id}${ext()}"
+      ]
+    },
+
     "scheduled_jobs": {
       "type": "object",
-      "description": "Configuration for scheduled jobs. Define schedules for each function name.",
+      "description": "Configuration for scheduled jobs. Optional dictionary keyed by function name.",
       "patternProperties": {
         "^[a-zA-Z0-9_]+$": {
           "type": "object",
-          "description": "Job configuration for a given function name.",
+          "description": "Configuration for a single named job (function).",
           "properties": {
             "schedules": {
               "type": "array",
-              "description": "An array of schedule configurations for this function.",
+              "description": "List of individual schedule entries for this function.",
               "items": {
                 "type": "object",
-                "description": "Individual schedule entry.",
+                "description": "One schedule entry.",
                 "properties": {
                   "cron": {
                     "type": "string",
-                    "description": "Must match the logic of convertCronToDaysArr:\n1) Must start with 'cron('\n2) The first field (minutes) must be one of 0,15,30,45\n3) The second field (hour) must be digits\n4) The fourth field must be '*'\n5) The fifth field must not be exactly '?'",
+                    "description": "Must match convertCronToDaysArr logic:\n1) Start with 'cron('\n2) 1st field: one of 0,15,30,45\n3) 2nd field: digits\n4) 4th field: '*'\n5) 5th field: not exactly '?'",
                     "pattern": "^cron\\(\\s*(?:0|15|30|45)\\s+(\\d+)\\s+[^\\s]+\\s+\\*\\s+(?!\\?)\\S+\\s*\\)$"
                   },
                   "is_enabled": {
                     "type": "boolean",
-                    "description": "Whether the schedule is active (default: true).",
+                    "description": "Whether this schedule is active (default: true).",
                     "default": true
                   },
                   "timezone": {
                     "type": "string",
-                    "description": "Time zone in which the schedule is interpreted (default: UTC).",
+                    "description": "Time zone for execution (default: UTC).",
                     "default": "UTC"
                   },
                   "variables": {
                     "type": "object",
-                    "description": "Stores additional data as JSON in the database.",
+                    "description": "Any additional parameters, stored as JSON.",
                     "additionalProperties": true
                   }
                 },
@@ -96,6 +105,12 @@
         }
       },
       "additionalProperties": false
+    },
+
+    "result_cache_ttl": {
+      "type": "integer",
+      "description": "TTL for caching results (in seconds). Default: 0 = no caching.",
+      "default": 0
     }
   }
 }
